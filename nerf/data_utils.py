@@ -80,7 +80,6 @@ def vis_grid(xy_grid, image_size):
     xy_vis = torch.cat([xy_vis, torch.zeros_like(xy_vis[..., :1])], -1)
     xy_vis = xy_vis.view(image_size[1], image_size[0], 3)
     xy_vis = np.array(xy_vis.detach().cpu())
-
     return xy_vis
 
 

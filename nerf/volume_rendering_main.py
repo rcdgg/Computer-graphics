@@ -16,8 +16,9 @@ from pytorch3d.renderer import (
 import matplotlib.pyplot as plt
 
 from implicit import implicit_dict
-from sampler import sampler_dict
+from sampler import sampler_dict, StratifiedRaysampler
 from renderer import renderer_dict
+from render_functions import render_points
 from ray_utils import (
     sample_images_at_xy,
     get_pixels_from_image,
@@ -35,6 +36,7 @@ from dataset import (
     trivial_collate,
 )
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model class containing:
 #   1) Implicit volume defining the scene
@@ -82,6 +84,7 @@ def render_images(
     model,
     cameras,
     image_size,
+    cfg,
     save=False,
     file_prefix=''
 ):
@@ -98,18 +101,27 @@ def render_images(
 
         # TODO (Q1.3): Visualize xy grid using vis_grid
         if cam_idx == 0 and file_prefix == '':
-            pass
+            xy = vis_grid(xy_grid, image_size)
+            plt.imshow((xy * 255).astype("uint8"))
+            plt.axis("off")  # optional: hides axis ticks
+            plt.show()
 
         # TODO (Q1.3): Visualize rays using vis_rays
         if cam_idx == 0 and file_prefix == '':
-            pass
+            xy = vis_rays(ray_bundle, image_size)
+            plt.imshow((xy * 255).astype("uint8"))
+            plt.axis("off")  # optional: hides axis ticks
+            plt.show()
+
         
         # TODO (Q1.4): Implement point sampling along rays in sampler.py
-        pass
-
+        sampler = StratifiedRaysampler(cfg.sampler)
+        sampler.forward(ray_bundle)
+        # print(ray_bundle.sample_points.shape)
         # TODO (Q1.4): Visualize sample points as point cloud
         if cam_idx == 0 and file_prefix == '':
-            pass
+            xy = render_points("pt", ray_bundle.sample_points)
+            print(xy.shape)
 
         # TODO (Q1.5): Implement rendering in renderer.py
         out = model(ray_bundle)
@@ -141,12 +153,12 @@ def render(
 ):
     # Create model
     model = Model(cfg)
-    model = model.cuda(); model.eval()
+    model = model.to(device); model.eval()
 
     # Render spiral
     cameras = create_surround_cameras(3.0, n_poses=20)
     all_images = render_images(
-        model, cameras, cfg.data.image_size
+        model, cameras, cfg.data.image_size, cfg
     )
     imageio.mimsave('images/part_1.gif', [np.uint8(im * 255) for im in all_images], loop=0)
 
@@ -156,7 +168,7 @@ def train(
 ):
     # Create model
     model = Model(cfg)
-    model = model.cuda(); model.train()
+    model = model.to(device); model.train()
 
     # Create dataset 
     train_dataset = dataset_from_config(cfg.data)
@@ -188,8 +200,8 @@ def train(
     for epoch in t_range:
         for iteration, batch in enumerate(train_dataloader):
             image, camera, camera_idx = batch[0].values()
-            image = image.cuda()
-            camera = camera.cuda()
+            image = image.to(device)
+            camera = camera.to(device)
 
             # Sample rays
             xy_grid = get_random_pixels_from_image(cfg.training.batch_size, image_size, camera) # TODO (Q2.1): implement in ray_utils.py
@@ -229,7 +241,7 @@ def train(
 def create_model(cfg):
     # Create model
     model = Model(cfg)
-    model.cuda(); model.train()
+    model = model.to(device); model.train()
 
     # Load checkpoints
     optimizer_state_dict = None
@@ -304,8 +316,8 @@ def train_nerf(
 
         for iteration, batch in t_range:
             image, camera, camera_idx = batch[0].values()
-            image = image.cuda().unsqueeze(0)
-            camera = camera.cuda()
+            image = image.to(device).unsqueeze(0)
+            camera = camera.to(device)
 
             # Sample rays
             xy_grid = get_random_pixels_from_image(

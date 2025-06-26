@@ -86,11 +86,12 @@ def render_points(filename, points, image_size=256, color=[0.7, 0.7, 1], device=
     # faces = faces.unsqueeze(0)  # (N_f, 3) -> (1, N_f, 3)
     textures = torch.ones(points.size()).to(device)*0.5   # (1, N_v, 3)
     rgb = textures * torch.tensor(color).to(device)  # (1, N_v, 3)
-
+    points = points.to(device)
+    print(points.shape)
+    print("making point cloud")
     point_cloud = pytorch3d.structures.pointclouds.Pointclouds(
-        points=points, features=rgb
+        points=[points], features=[rgb]
     )
-
     R, T = look_at_view_transform(10.0, 10.0, 96)
 
 
@@ -100,6 +101,7 @@ def render_points(filename, points, image_size=256, color=[0.7, 0.7, 1], device=
     )
 
     rend = points_renderer(point_cloud.extend(2), cameras=cameras)
+    print("done making point cloud")
 
 
     # Place a point light in front of the cow.
@@ -107,7 +109,10 @@ def render_points(filename, points, image_size=256, color=[0.7, 0.7, 1], device=
 
     # rend = renderer(mesh, cameras=cameras, lights=lights)
     rend = rend.detach().cpu().numpy()[0, ..., :3]  # (B, H, W, 4) -> (H, W, 3)
-    plt.imsave(filename, rend)
+    plt.imshow(rend)
+    plt.axis('off')  # Optional: hides axis ticks
+    plt.title("Rendered Output")  # Optional
+    plt.show()
 
     # The .cpu moves the tensor to GPU (if needed).
     return rend

@@ -2,8 +2,6 @@
 
 This repo provides differentiable neural rendering implementations:
 - **NeRF** (train_volume.py)
-- **Volumetric SDF** (train_volume.py)
-- **Sphere Tracing & Neural Surface Rendering** (train_surface.py)
 
 Core logic lives under `core/`. Configure experiments via `configs/`.
 
